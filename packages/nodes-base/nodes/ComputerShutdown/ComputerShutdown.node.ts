@@ -1,3 +1,4 @@
+import { createSocket } from 'dgram';
 import { exec } from 'child_process';
 import type {
 	IExecuteFunctions,
@@ -24,7 +25,6 @@ function execAsync(command: string): Promise<{ stdout: string; stderr: string; e
 }
 
 function buildCommand(action: string, delaySeconds: number, platform: string): string {
-	const isLinux = platform === 'linux';
 	const isMac = platform === 'darwin';
 	const isWindows = platform === 'win32';
 	const delayMinutes = Math.ceil(delaySeconds / 60);
@@ -36,11 +36,9 @@ function buildCommand(action: string, delaySeconds: number, platform: string): s
 	}
 
 	if (isWindows) {
-		const flag =
-			action === 'shutdown' ? '/s' : action === 'reboot' ? '/r' : '/h';
-		const delaySecs = delaySeconds;
 		if (action === 'suspend') return 'rundll32.exe powrprof.dll,SetSuspendState 0,1,0';
-		return `shutdown ${flag} /t ${delaySecs}`;
+		const flag = action === 'shutdown' ? '/s' : '/r';
+		return `shutdown ${flag} /t ${delaySeconds}`;
 	}
 
 	if (isMac) {
@@ -50,7 +48,7 @@ function buildCommand(action: string, delaySeconds: number, platform: string): s
 		return `shutdown ${subcommand} +${delayMinutes}`;
 	}
 
-	// Linux (systemd / sysvinit)
+	// Linux
 	if (action === 'suspend') {
 		if (delaySeconds > 0) return `sleep ${delaySeconds} && systemctl suspend`;
 		return 'systemctl suspend';
@@ -59,22 +57,64 @@ function buildCommand(action: string, delaySeconds: number, platform: string): s
 		if (delaySeconds > 0) return `sleep ${delaySeconds} && systemctl hibernate`;
 		return 'systemctl hibernate';
 	}
-	const subcommand = action === 'shutdown' ? 'poweroff' : 'reboot';
 	if (delaySeconds === 0) return `shutdown -${action === 'shutdown' ? 'h' : 'r'} now`;
 	return `shutdown -${action === 'shutdown' ? 'h' : 'r'} +${delayMinutes}`;
 }
 
+// Normalizes MAC to 6 bytes, accepts formats: AA:BB:CC:DD:EE:FF, AA-BB-CC-DD-EE-FF, AABBCCDDEEFF
+function parseMac(mac: string): Buffer {
+	const hex = mac.replace(/[:\-\s]/g, '');
+	if (!/^[0-9a-fA-F]{12}$/.test(hex)) {
+		throw new Error(`Dirección MAC inválida: "${mac}". Usa el formato AA:BB:CC:DD:EE:FF`);
+	}
+	const bytes = Buffer.alloc(6);
+	for (let i = 0; i < 6; i++) {
+		bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+	}
+	return bytes;
+}
+
+function buildMagicPacket(mac: string): Buffer {
+	const macBytes = parseMac(mac);
+	// Magic packet: 6x 0xFF followed by MAC address repeated 16 times
+	const packet = Buffer.alloc(6 + 16 * 6);
+	packet.fill(0xff, 0, 6);
+	for (let i = 0; i < 16; i++) {
+		macBytes.copy(packet, 6 + i * 6);
+	}
+	return packet;
+}
+
+function sendWakeOnLan(mac: string, broadcastAddress: string, port: number): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const packet = buildMagicPacket(mac);
+		const socket = createSocket('udp4');
+		socket.once('error', (err) => {
+			socket.close();
+			reject(err);
+		});
+		socket.bind(() => {
+			socket.setBroadcast(true);
+			socket.send(packet, 0, packet.length, port, broadcastAddress, (err) => {
+				socket.close();
+				if (err) reject(err);
+				else resolve();
+			});
+		});
+	});
+}
+
 export class ComputerShutdown implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Computer Shutdown',
+		displayName: 'Computer Power',
 		name: 'computerShutdown',
 		icon: 'fa:power-off',
 		iconColor: 'red',
 		group: ['transform'],
 		version: 1,
-		description: 'Apaga, suspende, hiberna o reinicia el ordenador que aloja n8n',
+		description: 'Enciende (Wake-on-LAN), apaga, suspende, hiberna o reinicia un ordenador de forma remota',
 		defaults: {
-			name: 'Computer Shutdown',
+			name: 'Computer Power',
 		},
 		inputs: [NodeConnectionType.Main],
 		outputs: [NodeConnectionType.Main],
@@ -84,6 +124,11 @@ export class ComputerShutdown implements INodeType {
 				name: 'action',
 				type: 'options',
 				options: [
+					{
+						name: 'Encender (Wake-on-LAN)',
+						value: 'wol',
+						description: 'Envía un magic packet para encender el ordenador remotamente',
+					},
 					{
 						name: 'Apagar',
 						value: 'shutdown',
@@ -110,16 +155,60 @@ export class ComputerShutdown implements INodeType {
 						description: 'Cancela un apagado o reinicio programado',
 					},
 				],
-				default: 'shutdown',
+				default: 'wol',
 				required: true,
 			},
+
+			// ── Wake-on-LAN parameters ──
+			{
+				displayName: 'Dirección MAC',
+				name: 'macAddress',
+				type: 'string',
+				default: '',
+				placeholder: 'AA:BB:CC:DD:EE:FF',
+				description:
+					'Dirección MAC de la tarjeta de red del ordenador a encender. Acepta formato con ":", "-" o sin separadores.',
+				required: true,
+				displayOptions: {
+					show: {
+						action: ['wol'],
+					},
+				},
+			},
+			{
+				displayName: 'Dirección de broadcast',
+				name: 'broadcastAddress',
+				type: 'string',
+				default: '255.255.255.255',
+				description:
+					'Dirección IP de broadcast de la red local. Usa 255.255.255.255 para broadcast global o la dirección de subred (p.ej. 192.168.1.255).',
+				displayOptions: {
+					show: {
+						action: ['wol'],
+					},
+				},
+			},
+			{
+				displayName: 'Puerto UDP',
+				name: 'wolPort',
+				type: 'number',
+				default: 9,
+				description: 'Puerto UDP para el magic packet (normalmente 7 o 9)',
+				displayOptions: {
+					show: {
+						action: ['wol'],
+					},
+				},
+			},
+
+			// ── Shutdown/reboot parameters ──
 			{
 				displayName: 'Retardo (segundos)',
 				name: 'delaySeconds',
 				type: 'number',
 				default: 0,
 				description:
-					'Segundos antes de ejecutar la acción (0 = inmediato). En macOS/Linux se redondea al minuto más cercano para shutdown/reboot.',
+					'Segundos antes de ejecutar la acción (0 = inmediato). En macOS/Linux se redondea al minuto más cercano.',
 				displayOptions: {
 					show: {
 						action: ['shutdown', 'reboot'],
@@ -149,7 +238,12 @@ export class ComputerShutdown implements INodeType {
 					},
 				],
 				default: 'auto',
-				description: 'Sistema operativo del ordenador a apagar',
+				description: 'Sistema operativo del ordenador',
+				displayOptions: {
+					hide: {
+						action: ['wol'],
+					},
+				},
 			},
 		],
 	};
@@ -161,36 +255,57 @@ export class ComputerShutdown implements INodeType {
 		for (let i = 0; i < items.length; i++) {
 			try {
 				const action = this.getNodeParameter('action', i) as string;
-				const delaySeconds =
-					action === 'shutdown' || action === 'reboot'
-						? (this.getNodeParameter('delaySeconds', i) as number)
-						: 0;
-				const platformParam = this.getNodeParameter('platform', i) as string;
-				const platform = platformParam === 'auto' ? process.platform : platformParam;
 
-				const command = buildCommand(action, delaySeconds, platform);
-				const result = await execAsync(command);
+				if (action === 'wol') {
+					const macAddress = this.getNodeParameter('macAddress', i) as string;
+					const broadcastAddress = this.getNodeParameter('broadcastAddress', i) as string;
+					const wolPort = this.getNodeParameter('wolPort', i) as number;
 
-				if (result.exitCode !== 0 && result.stderr) {
-					throw new NodeOperationError(
-						this.getNode(),
-						`El comando falló (código ${result.exitCode}): ${result.stderr}`,
-						{ itemIndex: i },
-					);
+					await sendWakeOnLan(macAddress, broadcastAddress, wolPort);
+
+					returnItems.push({
+						json: {
+							action: 'wol',
+							macAddress,
+							broadcastAddress,
+							port: wolPort,
+							success: true,
+							message: `Magic packet enviado a ${macAddress} via ${broadcastAddress}:${wolPort}`,
+						},
+						pairedItem: { item: i },
+					});
+				} else {
+					const delaySeconds =
+						action === 'shutdown' || action === 'reboot'
+							? (this.getNodeParameter('delaySeconds', i) as number)
+							: 0;
+					const platformParam = this.getNodeParameter('platform', i) as string;
+					const platform = platformParam === 'auto' ? process.platform : platformParam;
+
+					const command = buildCommand(action, delaySeconds, platform);
+					const result = await execAsync(command);
+
+					if (result.exitCode !== 0 && result.stderr) {
+						throw new NodeOperationError(
+							this.getNode(),
+							`El comando falló (código ${result.exitCode}): ${result.stderr}`,
+							{ itemIndex: i },
+						);
+					}
+
+					returnItems.push({
+						json: {
+							action,
+							platform,
+							delaySeconds,
+							command,
+							exitCode: result.exitCode,
+							stdout: result.stdout,
+							stderr: result.stderr,
+						},
+						pairedItem: { item: i },
+					});
 				}
-
-				returnItems.push({
-					json: {
-						action,
-						platform,
-						delaySeconds,
-						command,
-						exitCode: result.exitCode,
-						stdout: result.stdout,
-						stderr: result.stderr,
-					},
-					pairedItem: { item: i },
-				});
 			} catch (error) {
 				if (this.continueOnFail()) {
 					returnItems.push({

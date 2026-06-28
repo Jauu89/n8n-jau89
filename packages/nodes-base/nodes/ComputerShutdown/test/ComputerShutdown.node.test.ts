@@ -1,7 +1,7 @@
-// Tests for the command builder logic extracted from ComputerShutdown node.
-// We test command generation without actually executing any OS command.
+// Unit tests for ComputerShutdown/ComputerPower node logic.
+// These do not execute real OS commands or send real UDP packets.
 
-// Re-implement the pure buildCommand function here to keep the test self-contained.
+// ── buildCommand (duplicated from node to keep tests self-contained) ──
 function buildCommand(action: string, delaySeconds: number, platform: string): string {
 	const isMac = platform === 'darwin';
 	const isWindows = platform === 'win32';
@@ -14,8 +14,8 @@ function buildCommand(action: string, delaySeconds: number, platform: string): s
 	}
 
 	if (isWindows) {
-		const flag = action === 'shutdown' ? '/s' : action === 'reboot' ? '/r' : '/h';
 		if (action === 'suspend') return 'rundll32.exe powrprof.dll,SetSuspendState 0,1,0';
+		const flag = action === 'shutdown' ? '/s' : '/r';
 		return `shutdown ${flag} /t ${delaySeconds}`;
 	}
 
@@ -38,6 +38,31 @@ function buildCommand(action: string, delaySeconds: number, platform: string): s
 	if (delaySeconds === 0) return `shutdown -${action === 'shutdown' ? 'h' : 'r'} now`;
 	return `shutdown -${action === 'shutdown' ? 'h' : 'r'} +${delayMinutes}`;
 }
+
+// ── parseMac / buildMagicPacket (duplicated from node) ──
+function parseMac(mac: string): Buffer {
+	const hex = mac.replace(/[:\-\s]/g, '');
+	if (!/^[0-9a-fA-F]{12}$/.test(hex)) {
+		throw new Error(`Dirección MAC inválida: "${mac}". Usa el formato AA:BB:CC:DD:EE:FF`);
+	}
+	const bytes = Buffer.alloc(6);
+	for (let i = 0; i < 6; i++) {
+		bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+	}
+	return bytes;
+}
+
+function buildMagicPacket(mac: string): Buffer {
+	const macBytes = parseMac(mac);
+	const packet = Buffer.alloc(6 + 16 * 6);
+	packet.fill(0xff, 0, 6);
+	for (let i = 0; i < 16; i++) {
+		macBytes.copy(packet, 6 + i * 6);
+	}
+	return packet;
+}
+
+// ── Tests ──
 
 describe('ComputerShutdown – buildCommand', () => {
 	describe('Linux', () => {
@@ -114,5 +139,55 @@ describe('ComputerShutdown – buildCommand', () => {
 		it('cancel', () => {
 			expect(buildCommand('cancel', 0, 'win32')).toBe('shutdown /a');
 		});
+	});
+});
+
+describe('ComputerShutdown – Wake-on-LAN magic packet', () => {
+	it('parseMac acepta formato con dos puntos', () => {
+		const bytes = parseMac('AA:BB:CC:DD:EE:FF');
+		expect(bytes).toEqual(Buffer.from([0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff]));
+	});
+
+	it('parseMac acepta formato con guiones', () => {
+		const bytes = parseMac('AA-BB-CC-DD-EE-FF');
+		expect(bytes).toEqual(Buffer.from([0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff]));
+	});
+
+	it('parseMac acepta formato sin separadores', () => {
+		const bytes = parseMac('AABBCCDDEEFF');
+		expect(bytes).toEqual(Buffer.from([0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff]));
+	});
+
+	it('parseMac lanza error con MAC inválida', () => {
+		expect(() => parseMac('ZZ:ZZ:ZZ:ZZ:ZZ:ZZ')).toThrow('Dirección MAC inválida');
+		expect(() => parseMac('AA:BB:CC')).toThrow('Dirección MAC inválida');
+	});
+
+	it('buildMagicPacket tiene 102 bytes (6 + 16×6)', () => {
+		const packet = buildMagicPacket('AA:BB:CC:DD:EE:FF');
+		expect(packet.length).toBe(102);
+	});
+
+	it('los primeros 6 bytes son 0xFF', () => {
+		const packet = buildMagicPacket('AA:BB:CC:DD:EE:FF');
+		for (let i = 0; i < 6; i++) {
+			expect(packet[i]).toBe(0xff);
+		}
+	});
+
+	it('la MAC se repite 16 veces a partir del byte 6', () => {
+		const mac = 'AA:BB:CC:DD:EE:FF';
+		const packet = buildMagicPacket(mac);
+		const expected = Buffer.from([0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff]);
+		for (let i = 0; i < 16; i++) {
+			const slice = packet.slice(6 + i * 6, 6 + i * 6 + 6);
+			expect(slice).toEqual(expected);
+		}
+	});
+
+	it('magic packet en minúsculas funciona igual', () => {
+		const packet = buildMagicPacket('aa:bb:cc:dd:ee:ff');
+		expect(packet.length).toBe(102);
+		expect(packet[6]).toBe(0xaa);
 	});
 });
