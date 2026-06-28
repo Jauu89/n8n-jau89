@@ -1,0 +1,12 @@
+{
+	"node": "n8n-nodes-base.computerShutdown",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"details": "Computer Shutdown te permite apagar, suspender, hibernar o reiniciar el ordenador que aloja tu instancia de n8n de forma remota, por ejemplo desde el móvil a través de un webhook.",
+	"categories": ["Utility", "Core Nodes"],
+	"resources": {},
+	"alias": ["Shutdown", "Suspend", "Hibernate", "Reboot", "Power", "Apagar", "Suspender"],
+	"subcategories": {
+		"Core Nodes": ["Helpers"]
+	}
+}
