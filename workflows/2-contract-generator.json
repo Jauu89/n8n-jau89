@@ -1,0 +1,375 @@
+{
+  "name": "2. Generador de Contratos",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Nuevo Contrato",
+        "formDescription": "Rellena los datos para generar el contrato",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nombre del Cliente",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "NIF o CIF del Cliente",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email del Cliente",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Descripcion del Servicio",
+              "fieldType": "textarea",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Valor Total EUR",
+              "fieldType": "number",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Fecha de Inicio",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Fecha de Fin",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Condiciones de Pago",
+              "fieldType": "text",
+              "requiredField": false,
+              "placeholder": "ej. 50% al inicio, 50% al finalizar"
+            }
+          ]
+        },
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b094f5b7-ff96-4f4c-bbfa-adb113393ed9",
+      "name": "Formulario Contrato",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        100,
+        300
+      ],
+      "webhookId": "982a80e1-3a54-4ca9-a149-ce568f09a935"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1g-1ZIuwTC6gtLEnFraCWP9OqLfp-lWndAjJqSXlhh-k",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Contratos",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "f889e519-8b83-4d54-aa2f-6cc747e886c0",
+      "name": "Leer Contratos",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        400,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst formData = items[0].json;\n\n// ── number generation ──────────────────────────────────────────────────────\n// The input includes all rows from Contratos sheet; count them to get next number\nconst existingCount = $('Leer Contratos').all().length;\nconst year = new Date().getFullYear();\nconst nextNum = String(existingCount + 1).padStart(3, '0');\nconst numContrato = `CONT-${year}-${nextNum}`;\n\n// ── format date ────────────────────────────────────────────────────────────\nconst hoy = new Date();\nconst fechaHoy = hoy.toLocaleDateString('es-ES', {day: 'numeric', month: 'long', year: 'numeric'});\n\n// ── empresa (PERSONALIZA ESTOS DATOS) ─────────────────────────────────────\nconst empresa = {\n  nombre:    \"TU EMPRESA S.L.\",\n  nif:       \"B12345678\",\n  direccion: \"Calle Ejemplo, 123\",\n  ciudad:    \"28001 Madrid\",\n  email:     \"info@tuempresa.com\",\n  telefono:  \"+34 600 000 000\",\n};\n\n// ── contrato HTML ──────────────────────────────────────────────────────────\nconst html = `<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>Contrato ${numContrato}</title>\n<style>\n  *{margin:0;padding:0;box-sizing:border-box}\n  body{font-family:Georgia,'Times New Roman',serif;font-size:11pt;color:#1a1a1a;background:#fff;line-height:1.6}\n  .page{max-width:800px;margin:0 auto;padding:50px 60px}\n  .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1e40af;padding-bottom:20px;margin-bottom:30px}\n  .co-name{font-size:20pt;font-weight:700;color:#1e40af;font-family:system-ui,Arial,sans-serif}\n  .co-info{font-size:9pt;color:#64748b;margin-top:6px;font-family:system-ui,Arial,sans-serif}\n  .doc-title{text-align:right}\n  .doc-title h1{font-size:18pt;color:#1a1a1a;font-family:system-ui,Arial,sans-serif}\n  .doc-title p{font-size:10pt;color:#64748b;margin-top:4px;font-family:system-ui,Arial,sans-serif}\n  .parties{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:24px 0;padding:20px;background:#f8fafc;border-radius:8px}\n  .party h3{font-size:9pt;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:8px;font-family:system-ui,Arial,sans-serif}\n  .party p{font-size:10.5pt}\n  .section{margin:24px 0}\n  .section h2{font-size:11pt;font-weight:700;color:#1e40af;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:12px;font-family:system-ui,Arial,sans-serif}\n  .clause{margin:14px 0}\n  .clause strong{font-size:10.5pt}\n  .clause p{font-size:10.5pt;margin-top:4px}\n  .signatures{display:grid;grid-template-columns:1fr 1fr;gap:80px;margin-top:60px}\n  .sig-block{border-top:1px solid #1a1a1a;padding-top:8px}\n  .sig-label{font-size:9pt;color:#64748b}\n  .sig-name{font-size:10.5pt;font-weight:600;margin-top:4px}\n  .footer{margin-top:40px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:8.5pt;color:#94a3b8;text-align:center}\n  .print-btn{position:fixed;top:16px;right:16px;background:#1e40af;color:white;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-size:14px;font-family:system-ui,Arial,sans-serif}\n  @media print{.print-btn{display:none}.page{padding:20px}}\n</style>\n</head>\n<body>\n<button class=\"print-btn\" onclick=\"window.print()\">🖨️ Imprimir / PDF</button>\n<div class=\"page\">\n  <div class=\"header\">\n    <div>\n      <div class=\"co-name\">${empresa.nombre}</div>\n      <div class=\"co-info\">NIF: ${empresa.nif} · ${empresa.direccion}, ${empresa.ciudad}<br>${empresa.email} · ${empresa.telefono}</div>\n    </div>\n    <div class=\"doc-title\">\n      <h1>CONTRATO DE SERVICIOS</h1>\n      <p>Nº ${numContrato}</p>\n      <p>${fechaHoy}</p>\n    </div>\n  </div>\n\n  <div class=\"parties\">\n    <div class=\"party\">\n      <h3>Prestador de Servicios</h3>\n      <p><strong>${empresa.nombre}</strong><br>NIF: ${empresa.nif}<br>${empresa.direccion}<br>${empresa.ciudad}</p>\n    </div>\n    <div class=\"party\">\n      <h3>Cliente</h3>\n      <p><strong>${formData['Nombre del Cliente']}</strong><br>NIF/CIF: ${formData['NIF o CIF del Cliente']}<br>Email: ${formData['Email del Cliente']}</p>\n    </div>\n  </div>\n\n  <div class=\"section\">\n    <h2>Cláusulas del Contrato</h2>\n\n    <div class=\"clause\">\n      <strong>PRIMERA – Objeto del Contrato</strong>\n      <p>${formData['Descripcion del Servicio']}</p>\n    </div>\n\n    <div class=\"clause\">\n      <strong>SEGUNDA – Plazo de Ejecución</strong>\n      <p>Los trabajos objeto del presente contrato se realizarán en el periodo comprendido entre el <strong>${formData['Fecha de Inicio']}</strong> y el <strong>${formData['Fecha de Fin']}</strong>.</p>\n    </div>\n\n    <div class=\"clause\">\n      <strong>TERCERA – Precio y Forma de Pago</strong>\n      <p>El precio total acordado es de <strong>${parseFloat(formData['Valor Total EUR'] || 0).toLocaleString('es-ES', {minimumFractionDigits:2})} €</strong> (IVA no incluido), a pagar según las siguientes condiciones: ${formData['Condiciones de Pago'] || 'A convenir entre las partes'}.</p>\n    </div>\n\n    <div class=\"clause\">\n      <strong>CUARTA – Confidencialidad</strong>\n      <p>Ambas partes se comprometen a mantener la más estricta confidencialidad respecto a la información intercambiada en el marco del presente contrato.</p>\n    </div>\n\n    <div class=\"clause\">\n      <strong>QUINTA – Ley Aplicable y Jurisdicción</strong>\n      <p>El presente contrato se regirá por la legislación española. Las partes se someten a los juzgados y tribunales de ${empresa.ciudad.split(' ').slice(1).join(' ') || 'Madrid'}.</p>\n    </div>\n  </div>\n\n  <div class=\"signatures\">\n    <div class=\"sig-block\">\n      <div class=\"sig-label\">Por el prestador de servicios</div>\n      <div class=\"sig-name\">${empresa.nombre}</div>\n      <div style=\"height:60px\"></div>\n      <div style=\"font-size:9pt;color:#64748b\">Firma y sello</div>\n    </div>\n    <div class=\"sig-block\">\n      <div class=\"sig-label\">Por el cliente</div>\n      <div class=\"sig-name\">${formData['Nombre del Cliente']}</div>\n      <div style=\"height:60px\"></div>\n      <div style=\"font-size:9pt;color:#64748b\">Firma</div>\n    </div>\n  </div>\n\n  <div class=\"footer\">Contrato generado el ${fechaHoy} · Referencia ${numContrato}</div>\n</div>\n</body>\n</html>`;\n\nreturn [{json: {html, numContrato, clienteNombre: formData['Nombre del Cliente'], fecha: new Date().toISOString().split('T')[0]}}];"
+      },
+      "id": "8d29de4f-c3e3-4682-9f8c-3bd6eb068993",
+      "name": "Generar Contrato",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1g-1ZIuwTC6gtLEnFraCWP9OqLfp-lWndAjJqSXlhh-k",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Contratos",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Num_Contrato": "={{ $json.numContrato }}",
+            "Fecha": "={{ $json.fecha }}",
+            "Cliente_Nombre": "={{ $('Formulario Contrato').first().json['Nombre del Cliente'] }}",
+            "Cliente_NIF": "={{ $('Formulario Contrato').first().json['NIF o CIF del Cliente'] }}",
+            "Cliente_Email": "={{ $('Formulario Contrato').first().json['Email del Cliente'] }}",
+            "Descripcion_Servicio": "={{ $('Formulario Contrato').first().json['Descripcion del Servicio'] }}",
+            "Valor_Total": "={{ $('Formulario Contrato').first().json['Valor Total EUR'] }}",
+            "Fecha_Inicio": "={{ $('Formulario Contrato').first().json['Fecha de Inicio'] }}",
+            "Fecha_Fin": "={{ $('Formulario Contrato').first().json['Fecha de Fin'] }}",
+            "Estado": "Borrador"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Num_Contrato",
+              "displayName": "Num_Contrato",
+              "type": "string"
+            },
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "type": "string"
+            },
+            {
+              "id": "Cliente_Nombre",
+              "displayName": "Cliente_Nombre",
+              "type": "string"
+            },
+            {
+              "id": "Cliente_NIF",
+              "displayName": "Cliente_NIF",
+              "type": "string"
+            },
+            {
+              "id": "Cliente_Email",
+              "displayName": "Cliente_Email",
+              "type": "string"
+            },
+            {
+              "id": "Descripcion_Servicio",
+              "displayName": "Descripcion_Servicio",
+              "type": "string"
+            },
+            {
+              "id": "Valor_Total",
+              "displayName": "Valor_Total",
+              "type": "number"
+            },
+            {
+              "id": "Fecha_Inicio",
+              "displayName": "Fecha_Inicio",
+              "type": "string"
+            },
+            {
+              "id": "Fecha_Fin",
+              "displayName": "Fecha_Fin",
+              "type": "string"
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e3fd7d9b-44d8-4227-9a33-64460cb7a67d",
+      "name": "Registrar Contrato",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        980,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "name": "Prueba",
+        "driveId": {
+          "__rl": true,
+          "value": "MyDrive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "TU_CARPETA_CONTRATOS_ID",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "16a1a44a-58d3-49c3-92f7-c049d4e3c2ab",
+      "name": "Crear Subcarpeta Contrato",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1260,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Drive (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "createFromText",
+        "name": "={{ $('Generar Contrato').first().json.numContrato + '_' + $('Generar Contrato').first().json.clienteNombre.replace(/ /g,'_') + '.html' }}",
+        "content": "={{ $('Generar Contrato').first().json.html }}",
+        "driveId": {
+          "__rl": true,
+          "value": "MyDrive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "dd9c7d0a-94d5-4804-abe7-64503ae1a94e",
+      "name": "Guardar Contrato en Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1540,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Drive (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $('Generar Contrato').first().json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "8dc26100-e9d1-4378-abec-44ade2ac553d",
+      "name": "Mostrar Contrato",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1820,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Formulario Contrato": {
+      "main": [
+        [
+          {
+            "node": "Leer Contratos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Contratos": {
+      "main": [
+        [
+          {
+            "node": "Generar Contrato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Contrato": {
+      "main": [
+        [
+          {
+            "node": "Registrar Contrato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Contrato": {
+      "main": [
+        [
+          {
+            "node": "Crear Subcarpeta Contrato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Subcarpeta Contrato": {
+      "main": [
+        [
+          {
+            "node": "Guardar Contrato en Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Contrato en Drive": {
+      "main": [
+        [
+          {
+            "node": "Mostrar Contrato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "stock-app-n8n"
+  }
+}
