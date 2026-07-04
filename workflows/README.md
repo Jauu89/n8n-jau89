@@ -1,6 +1,8 @@
 # App de Stock, Contratos y Facturas — Workflows n8n
 
-Tres workflows n8n para gestionar inventario y generar documentos profesionales en español, conectados a Google Sheets y Google Drive.
+Cuatro workflows n8n para gestionar inventario y generar documentos profesionales en español, conectados a Google Sheets y Google Drive.
+
+> **La hoja de cálculo original nunca se modifica.** El workflow de setup crea una copia de trabajo sobre la que operan los demás workflows.
 
 ---
 
@@ -8,6 +10,7 @@ Tres workflows n8n para gestionar inventario y generar documentos profesionales 
 
 | Archivo | Descripción |
 |---|---|
+| `0-setup.json` | **Ejecutar UNA SOLA VEZ** — copia el spreadsheet y crea las carpetas de Drive |
 | `1-stock-management.json` | Control de inventario (ver, añadir, actualizar, alertas) |
 | `2-contract-generator.json` | Generador de contratos con numeración automática |
 | `3-invoice-generator.json` | Generador de facturas con cálculo de IVA |
@@ -22,11 +25,32 @@ Inicio rápido: `npm run start` desde la raíz del monorepo.
 
 ### 2. Credenciales de Google (una sola vez)
 En n8n ve a **Settings → Credentials** y crea:
+- **Google Drive OAuth2** — para copiar el spreadsheet y guardar documentos
 - **Google Sheets OAuth2** — para leer/escribir en la hoja de cálculo
-- **Google Drive OAuth2** — para guardar documentos en Drive
 
-### 3. Hoja de cálculo de Google Sheets
-La hoja con ID `1g-1ZIuwTC6gtLEnFraCWP9OqLfp-lWndAjJqSXlhh-k` necesita **3 pestañas** con estos nombres exactos:
+---
+
+## Puesta en marcha (orden importante)
+
+### Paso 1 — Importar y ejecutar el setup
+
+1. Abre n8n → **Workflows → New** → menú `⋮` → **Import from file**
+2. Importa `0-setup.json`
+3. En el nodo **"Copiar Spreadsheet Original"** y los nodos **"Crear Carpeta..."**, asigna tu credencial de Google Drive
+4. Ejecuta el workflow manualmente con el botón **Test workflow**
+5. Se abrirá una pantalla con **3 IDs** — mantenla abierta o cópialos a un bloc de notas:
+   - ID del spreadsheet copia (`TU_SPREADSHEET_COPIA_ID`)
+   - ID de la carpeta Contratos (`TU_CARPETA_CONTRATOS_ID`)
+   - ID de la carpeta Facturas (`TU_CARPETA_FACTURAS_ID`)
+
+> El setup crea en tu Google Drive:
+> - Una copia del spreadsheet llamada **`[APP] Stock Contratos Facturas`**
+> - Una carpeta **`Contratos/`**
+> - Una carpeta **`Facturas/`**
+
+### Paso 2 — Preparar la hoja de cálculo
+
+Abre la **copia** del spreadsheet (la que se llama `[APP] Stock Contratos Facturas`) y crea **3 pestañas** con estos nombres exactos:
 
 **Pestaña `Stock`** — columnas:
 ```
@@ -43,26 +67,19 @@ Num_Contrato | Fecha | Cliente_Nombre | Cliente_NIF | Cliente_Email | Descripcio
 Num_Factura | Fecha | Cliente_Nombre | Cliente_NIF | Cliente_Email | Items_JSON | Base_Imponible | IVA_Porcentaje | Total | Estado
 ```
 
-### 4. Carpetas de Google Drive
-Crea estas dos carpetas en Drive y copia sus IDs (aparecen en la URL):
+### Paso 3 — Importar y configurar los workflows 1, 2 y 3
 
-| Carpeta | Placeholder en el workflow |
-|---|---|
-| `📁 Contratos/` | `TU_CARPETA_CONTRATOS_ID` |
-| `📁 Facturas/` | `TU_CARPETA_FACTURAS_ID` |
+1. Importa `1-stock-management.json`, `2-contract-generator.json` y `3-invoice-generator.json`
+2. En cada workflow, reemplaza los placeholders con los IDs del paso 1:
 
-Los documentos se guardan automáticamente en una subcarpeta `Prueba/` (modo prueba). Cuando estés listo para producción, cambia el nombre en el nodo **"Crear Subcarpeta..."** a `2026/` o el periodo que prefieras.
+| Placeholder | Workflows | Dónde |
+|---|---|---|
+| `TU_SPREADSHEET_COPIA_ID` | 1, 2 y 3 | Nodos Google Sheets (campo Spreadsheet) |
+| `TU_CARPETA_CONTRATOS_ID` | 2 | Nodo "Crear Subcarpeta Contrato" (campo Parent Folder) |
+| `TU_CARPETA_FACTURAS_ID` | 3 | Nodo "Crear Subcarpeta Factura" (campo Parent Folder) |
 
----
-
-## Importar los workflows
-
-1. Abre n8n en el navegador
-2. Ve a **Workflows → New** → menú `⋮` → **Import from file**
-3. Importa cada uno de los 3 JSON
-4. En cada workflow, haz clic sobre los nodos de **Google Sheets** y **Google Drive** y asigna tus credenciales
-5. Reemplaza `TU_CARPETA_CONTRATOS_ID` y `TU_CARPETA_FACTURAS_ID` con los IDs reales de tus carpetas
-6. Activa cada workflow con el toggle **Active**
+3. En cada workflow, asigna tus credenciales en los nodos **Google Sheets** y **Google Drive**
+4. Activa cada workflow con el toggle **Active**
 
 ---
 
@@ -131,5 +148,4 @@ Resultado:
 
 Cuando hayas probado los workflows:
 1. En los nodos **"Crear Subcarpeta Contrato"** y **"Crear Subcarpeta Factura"**, cambia el nombre `"Prueba"` por el periodo (p.ej. `"2026"`).
-2. Mueve las carpetas raíz de Drive a donde las necesites.
-3. Los números correlativos se calculan solos contando las filas de Google Sheets.
+2. Los números correlativos se calculan solos contando las filas de Google Sheets.

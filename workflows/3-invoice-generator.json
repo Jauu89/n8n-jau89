@@ -54,7 +54,7 @@
         "operation": "read",
         "documentId": {
           "__rl": true,
-          "value": "1g-1ZIuwTC6gtLEnFraCWP9OqLfp-lWndAjJqSXlhh-k",
+          "value": "TU_SPREADSHEET_COPIA_ID",
           "mode": "id"
         },
         "sheetName": {
@@ -97,7 +97,7 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "1g-1ZIuwTC6gtLEnFraCWP9OqLfp-lWndAjJqSXlhh-k",
+          "value": "TU_SPREADSHEET_COPIA_ID",
           "mode": "id"
         },
         "sheetName": {
