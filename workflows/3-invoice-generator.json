@@ -1,0 +1,361 @@
+{
+  "name": "3. Generador de Facturas",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Nueva Factura",
+        "formDescription": "Rellena los datos para generar la factura",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nombre del Cliente",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "NIF o CIF del Cliente",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email del Cliente",
+              "fieldType": "email",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Lineas de Factura",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "placeholder": "Una por línea con formato: cantidad|descripción|precio_unitario\nEj: 2|Consultoría web|150\n1|Diseño logo|400"
+            },
+            {
+              "fieldLabel": "IVA Porcentaje",
+              "fieldType": "number",
+              "requiredField": false,
+              "placeholder": "21"
+            }
+          ]
+        },
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5a78954c-64bf-44b9-b99e-8122f5875106",
+      "name": "Formulario Factura",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        100,
+        300
+      ],
+      "webhookId": "a7d9eb8e-b3c4-4e13-b258-77e5c9ec6036"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "TU_SPREADSHEET_COPIA_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Facturas",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "1e45d912-6535-4a41-8837-c2dd1385c739",
+      "name": "Leer Facturas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        400,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst formData = items[0].json;\n\n// ── number generation ──────────────────────────────────────────────────────\nconst existingCount = $('Leer Facturas').all().length;\nconst year = new Date().getFullYear();\nconst nextNum = String(existingCount + 1).padStart(3, '0');\nconst numFactura = `FAC-${year}-${nextNum}`;\n\n// ── parse line items from textarea (one per line: qty|description|unit_price) ──\nconst rawItems = (formData['Lineas de Factura'] || '').split('\\n').map(l => l.trim()).filter(Boolean);\nconst lineItems = rawItems.map(line => {\n  const parts = line.split('|').map(p => p.trim());\n  const qty = parseFloat(parts[0]) || 1;\n  const desc = parts[1] || line;\n  const unitPrice = parseFloat(parts[2]) || 0;\n  return {qty, desc, unitPrice, total: qty * unitPrice};\n});\n\nconst iva = parseFloat(formData['IVA Porcentaje'] || 21);\nconst base = lineItems.reduce((s, i) => s + i.total, 0);\nconst ivaAmount = base * (iva / 100);\nconst total = base + ivaAmount;\n\nconst fmt = v => parseFloat(v).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €';\nconst hoy = new Date();\nconst fechaHoy = hoy.toLocaleDateString('es-ES', {day: 'numeric', month: 'long', year: 'numeric'});\n\n// ── empresa (PERSONALIZA ESTOS DATOS) ─────────────────────────────────────\nconst empresa = {\n  nombre:    \"TU EMPRESA S.L.\",\n  nif:       \"B12345678\",\n  direccion: \"Calle Ejemplo, 123\",\n  ciudad:    \"28001 Madrid\",\n  email:     \"info@tuempresa.com\",\n  telefono:  \"+34 600 000 000\",\n  banco:     \"ES00 0000 0000 0000 0000 0000\",\n};\n\nconst lineRows = lineItems.map(i => `\n  <tr>\n    <td style=\"text-align:center\">${i.qty}</td>\n    <td>${i.desc}</td>\n    <td style=\"text-align:right\">${fmt(i.unitPrice)}</td>\n    <td style=\"text-align:right;font-weight:600\">${fmt(i.total)}</td>\n  </tr>`).join('');\n\nconst html = `<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>Factura ${numFactura}</title>\n<style>\n  *{margin:0;padding:0;box-sizing:border-box}\n  body{font-family:system-ui,Arial,sans-serif;font-size:11pt;color:#1a1a1a;background:#fff}\n  .page{max-width:800px;margin:0 auto;padding:50px 60px}\n  .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #059669;padding-bottom:20px;margin-bottom:30px}\n  .co-name{font-size:20pt;font-weight:700;color:#059669}\n  .co-info{font-size:9pt;color:#64748b;margin-top:6px}\n  .doc-title h1{font-size:18pt;color:#1a1a1a;text-align:right}\n  .doc-title p{font-size:10pt;color:#64748b;text-align:right;margin-top:4px}\n  .parties{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:24px 0;padding:20px;background:#f0fdf4;border-radius:8px}\n  .party h3{font-size:9pt;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:8px}\n  table.items{width:100%;border-collapse:collapse;margin:24px 0}\n  table.items thead th{background:#059669;color:white;padding:10px 14px;text-align:left;font-size:12px}\n  table.items tbody td{padding:10px 14px;border-bottom:1px solid #f0fdf4;font-size:12px;vertical-align:top}\n  .totals{display:flex;justify-content:flex-end;margin-top:8px}\n  .totals-box{width:280px}\n  .totals-row{display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid #e2e8f0}\n  .totals-row.total{font-weight:700;font-size:14px;border-bottom:none;border-top:2px solid #059669;margin-top:4px;padding-top:10px;color:#059669}\n  .payment{margin:24px 0;padding:16px;background:#f8fafc;border-radius:8px;font-size:11px}\n  .payment h3{font-size:10pt;margin-bottom:8px;color:#059669}\n  .footer{margin-top:40px;padding-top:12px;border-top:1px solid #e2e8f0;font-size:8.5pt;color:#94a3b8;text-align:center}\n  .print-btn{position:fixed;top:16px;right:16px;background:#059669;color:white;border:none;padding:9px 20px;border-radius:8px;cursor:pointer;font-size:14px;font-family:inherit}\n  @media print{.print-btn{display:none}.page{padding:20px}}\n</style>\n</head>\n<body>\n<button class=\"print-btn\" onclick=\"window.print()\">🖨️ Imprimir / PDF</button>\n<div class=\"page\">\n  <div class=\"header\">\n    <div>\n      <div class=\"co-name\">${empresa.nombre}</div>\n      <div class=\"co-info\">NIF: ${empresa.nif} · ${empresa.direccion}, ${empresa.ciudad}<br>${empresa.email} · ${empresa.telefono}</div>\n    </div>\n    <div class=\"doc-title\">\n      <h1>FACTURA</h1>\n      <p>Nº ${numFactura}</p>\n      <p>Fecha: ${fechaHoy}</p>\n    </div>\n  </div>\n\n  <div class=\"parties\">\n    <div class=\"party\">\n      <h3>Emisor</h3>\n      <p><strong>${empresa.nombre}</strong><br>NIF: ${empresa.nif}<br>${empresa.direccion}, ${empresa.ciudad}</p>\n    </div>\n    <div class=\"party\">\n      <h3>Cliente / Receptor</h3>\n      <p><strong>${formData['Nombre del Cliente']}</strong><br>NIF/CIF: ${formData['NIF o CIF del Cliente']}<br>Email: ${formData['Email del Cliente']}</p>\n    </div>\n  </div>\n\n  <table class=\"items\">\n    <thead><tr>\n      <th style=\"width:60px;text-align:center\">Cant.</th>\n      <th>Descripción</th>\n      <th style=\"width:120px;text-align:right\">Precio Unit.</th>\n      <th style=\"width:120px;text-align:right\">Total</th>\n    </tr></thead>\n    <tbody>${lineRows}</tbody>\n  </table>\n\n  <div class=\"totals\">\n    <div class=\"totals-box\">\n      <div class=\"totals-row\"><span>Base imponible</span><span>${fmt(base)}</span></div>\n      <div class=\"totals-row\"><span>IVA (${iva}%)</span><span>${fmt(ivaAmount)}</span></div>\n      <div class=\"totals-row total\"><span>TOTAL</span><span>${fmt(total)}</span></div>\n    </div>\n  </div>\n\n  <div class=\"payment\">\n    <h3>Datos de Pago</h3>\n    <p>Cuenta bancaria: <strong>${empresa.banco}</strong><br>\n    Concepto: ${numFactura} – ${formData['Nombre del Cliente']}</p>\n  </div>\n\n  <div class=\"footer\">Esta factura ha sido emitida de conformidad con la normativa fiscal española · ${numFactura}</div>\n</div>\n</body>\n</html>`;\n\nreturn [{json: {html, numFactura, clienteNombre: formData['Nombre del Cliente'], base: base.toFixed(2), iva, total: total.toFixed(2), fecha: new Date().toISOString().split('T')[0]}}];"
+      },
+      "id": "79472629-89ba-4a2c-ac66-ca0491033bdb",
+      "name": "Generar Factura",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "TU_SPREADSHEET_COPIA_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Facturas",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Num_Factura": "={{ $json.numFactura }}",
+            "Fecha": "={{ $json.fecha }}",
+            "Cliente_Nombre": "={{ $('Formulario Factura').first().json['Nombre del Cliente'] }}",
+            "Cliente_NIF": "={{ $('Formulario Factura').first().json['NIF o CIF del Cliente'] }}",
+            "Cliente_Email": "={{ $('Formulario Factura').first().json['Email del Cliente'] }}",
+            "Items_JSON": "={{ $('Formulario Factura').first().json['Lineas de Factura'] }}",
+            "Base_Imponible": "={{ $json.base }}",
+            "IVA_Porcentaje": "={{ $json.iva }}",
+            "Total": "={{ $json.total }}",
+            "Estado": "Pendiente"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Num_Factura",
+              "displayName": "Num_Factura",
+              "type": "string"
+            },
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "type": "string"
+            },
+            {
+              "id": "Cliente_Nombre",
+              "displayName": "Cliente_Nombre",
+              "type": "string"
+            },
+            {
+              "id": "Cliente_NIF",
+              "displayName": "Cliente_NIF",
+              "type": "string"
+            },
+            {
+              "id": "Cliente_Email",
+              "displayName": "Cliente_Email",
+              "type": "string"
+            },
+            {
+              "id": "Items_JSON",
+              "displayName": "Items_JSON",
+              "type": "string"
+            },
+            {
+              "id": "Base_Imponible",
+              "displayName": "Base_Imponible",
+              "type": "number"
+            },
+            {
+              "id": "IVA_Porcentaje",
+              "displayName": "IVA_Porcentaje",
+              "type": "number"
+            },
+            {
+              "id": "Total",
+              "displayName": "Total",
+              "type": "number"
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b07bf799-191d-4553-97fb-04f60f7463ff",
+      "name": "Registrar Factura",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        980,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "name": "Prueba",
+        "driveId": {
+          "__rl": true,
+          "value": "MyDrive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "TU_CARPETA_FACTURAS_ID",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "6513da6b-3c10-4ff3-a18a-a31ef5c82281",
+      "name": "Crear Subcarpeta Factura",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1260,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Drive (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "createFromText",
+        "name": "={{ $('Generar Factura').first().json.numFactura + '_' + $('Generar Factura').first().json.clienteNombre.replace(/ /g,'_') + '.html' }}",
+        "content": "={{ $('Generar Factura').first().json.html }}",
+        "driveId": {
+          "__rl": true,
+          "value": "MyDrive",
+          "mode": "list",
+          "cachedResultName": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "3323c159-3785-4eea-af13-7ae4966a356d",
+      "name": "Guardar Factura en Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1540,
+        300
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Drive (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $('Generar Factura').first().json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "c5195bc3-c847-415b-a84e-be83fcf52775",
+      "name": "Mostrar Factura",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1820,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Formulario Factura": {
+      "main": [
+        [
+          {
+            "node": "Leer Facturas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Facturas": {
+      "main": [
+        [
+          {
+            "node": "Generar Factura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Factura": {
+      "main": [
+        [
+          {
+            "node": "Registrar Factura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Factura": {
+      "main": [
+        [
+          {
+            "node": "Crear Subcarpeta Factura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Subcarpeta Factura": {
+      "main": [
+        [
+          {
+            "node": "Guardar Factura en Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Factura en Drive": {
+      "main": [
+        [
+          {
+            "node": "Mostrar Factura",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "stock-app-n8n"
+  }
+}

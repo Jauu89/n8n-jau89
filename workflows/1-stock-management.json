@@ -1,0 +1,741 @@
+{
+  "name": "1. Gestion de Stock",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Gestión de Stock",
+        "formDescription": "Selecciona la acción que deseas realizar",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Accion",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Ver todo el stock"
+                  },
+                  {
+                    "option": "Añadir producto"
+                  },
+                  {
+                    "option": "Actualizar stock"
+                  },
+                  {
+                    "option": "Ver alertas de stock bajo"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "38088067-587a-4f43-b33d-53d6012cbeee",
+      "name": "Formulario de Stock",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        100,
+        300
+      ],
+      "webhookId": "24100858-2e86-4fc0-919d-b6e3fbeb21e7"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.Accion }}",
+                    "rightValue": "Ver todo el stock",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Ver stock"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.Accion }}",
+                    "rightValue": "Añadir producto",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Añadir"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.Accion }}",
+                    "rightValue": "Actualizar stock",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Actualizar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.Accion }}",
+                    "rightValue": "Ver alertas de stock bajo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Alertas"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f10c9162-7988-4d3a-bb9e-c264a670a40f",
+      "name": "Enrutar Accion",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "TU_SPREADSHEET_COPIA_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Stock",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "e18c0481-0f97-403d-8d85-94bf0e009c55",
+      "name": "Leer Stock",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        700,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst rows = items.map(i => i.json);\n\nfunction badge(row) {\n  return parseFloat(row.Stock_Actual || 0) <= parseFloat(row.Stock_Minimo || 0)\n    ? '<span style=\"background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:9999px;font-size:11px\">⚠ Bajo</span>'\n    : '<span style=\"background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:9999px;font-size:11px\">✓ OK</span>';\n}\n\nconst tableRows = rows.map(row => `\n  <tr>\n    <td>${row.ID || ''}</td>\n    <td><strong>${row.Nombre || ''}</strong><br><small style=\"color:#6b7280\">${row.Descripcion || ''}</small></td>\n    <td>${row.Categoria || ''}</td>\n    <td style=\"text-align:right\">${parseFloat(row.Precio_Venta || 0).toFixed(2)} €</td>\n    <td style=\"text-align:center\">${row.Stock_Actual || 0} ${row.Unidad || ''}</td>\n    <td style=\"text-align:center\">${row.Stock_Minimo || 0}</td>\n    <td style=\"text-align:center\">${badge(row)}</td>\n  </tr>`).join('');\n\nconst html = `<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>Inventario de Stock</title>\n<style>\n  *{margin:0;padding:0;box-sizing:border-box}\n  body{font-family:system-ui,Arial,sans-serif;background:#f1f5f9;padding:24px}\n  h1{color:#1e40af;font-size:22px;margin-bottom:4px}\n  .meta{color:#64748b;font-size:13px;margin-bottom:20px}\n  .card{background:white;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.1);overflow:hidden}\n  table{width:100%;border-collapse:collapse}\n  th{background:#1e40af;color:white;padding:10px 14px;text-align:left;font-size:13px;font-weight:600}\n  td{padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;vertical-align:middle}\n  tr:last-child td{border-bottom:none}\n  tr:hover td{background:#f8fafc}\n  .btn{position:fixed;top:16px;right:16px;background:#1e40af;color:white;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:14px;font-family:inherit}\n  @media print{.btn{display:none}body{background:white;padding:0}}\n</style></head><body>\n<button class=\"btn\" onclick=\"window.print()\">🖨️ Imprimir</button>\n<h1>📦 Inventario de Stock</h1>\n<p class=\"meta\">Total: ${rows.length} productos · Actualizado: ${new Date().toLocaleString('es-ES')}</p>\n<div class=\"card\">\n<table><thead><tr>\n  <th>ID</th><th>Producto</th><th>Categoría</th><th>Precio Venta</th><th>Stock Actual</th><th>Mínimo</th><th>Estado</th>\n</tr></thead><tbody>${tableRows}</tbody></table>\n</div></body></html>`;\n\nreturn [{json: {html}}];"
+      },
+      "id": "62df5181-9b2d-4dd0-af24-a71e5d713f13",
+      "name": "Generar HTML Stock",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "97091c5b-d721-41b0-b641-497c2ce74ecf",
+      "name": "Responder Stock",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "page",
+        "defineForm": "fields",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "ID del Producto",
+              "fieldType": "text",
+              "requiredField": true,
+              "placeholder": "ej. PROD-001"
+            },
+            {
+              "fieldLabel": "Nombre",
+              "fieldType": "text",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Descripcion",
+              "fieldType": "textarea",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Categoria",
+              "fieldType": "dropdown",
+              "requiredField": false,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Producto"
+                  },
+                  {
+                    "option": "Servicio"
+                  },
+                  {
+                    "option": "Material"
+                  },
+                  {
+                    "option": "Consumible"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Precio Venta EUR",
+              "fieldType": "number",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Precio Compra EUR",
+              "fieldType": "number",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Stock Actual",
+              "fieldType": "number",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Stock Minimo",
+              "fieldType": "number",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Unidad",
+              "fieldType": "dropdown",
+              "requiredField": false,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "uds"
+                  },
+                  {
+                    "option": "h"
+                  },
+                  {
+                    "option": "kg"
+                  },
+                  {
+                    "option": "m"
+                  },
+                  {
+                    "option": "m2"
+                  },
+                  {
+                    "option": "l"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {
+          "formTitle": "Nuevo Producto"
+        }
+      },
+      "id": "a76c08ad-626d-4ad0-a637-7592e83621af",
+      "name": "Datos del Producto",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "TU_SPREADSHEET_COPIA_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Stock",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json['ID del Producto'] }}",
+            "Nombre": "={{ $json.Nombre }}",
+            "Descripcion": "={{ $json.Descripcion }}",
+            "Categoria": "={{ $json.Categoria }}",
+            "Precio_Venta": "={{ $json['Precio Venta EUR'] }}",
+            "Precio_Compra": "={{ $json['Precio Compra EUR'] }}",
+            "Stock_Actual": "={{ $json['Stock Actual'] }}",
+            "Stock_Minimo": "={{ $json['Stock Minimo'] }}",
+            "Unidad": "={{ $json.Unidad }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "type": "string"
+            },
+            {
+              "id": "Nombre",
+              "displayName": "Nombre",
+              "type": "string"
+            },
+            {
+              "id": "Descripcion",
+              "displayName": "Descripcion",
+              "type": "string"
+            },
+            {
+              "id": "Categoria",
+              "displayName": "Categoria",
+              "type": "string"
+            },
+            {
+              "id": "Precio_Venta",
+              "displayName": "Precio_Venta",
+              "type": "number"
+            },
+            {
+              "id": "Precio_Compra",
+              "displayName": "Precio_Compra",
+              "type": "number"
+            },
+            {
+              "id": "Stock_Actual",
+              "displayName": "Stock_Actual",
+              "type": "number"
+            },
+            {
+              "id": "Stock_Minimo",
+              "displayName": "Stock_Minimo",
+              "type": "number"
+            },
+            {
+              "id": "Unidad",
+              "displayName": "Unidad",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b34b957b-9489-47a5-9677-165f5e149032",
+      "name": "Guardar Producto",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        980,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "✅ Producto añadido",
+        "completionMessage": "El producto ha sido añadido al inventario correctamente.",
+        "options": {}
+      },
+      "id": "41475f66-587b-4653-864c-84778ffbf1f2",
+      "name": "Confirmacion Añadir",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        1260,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "page",
+        "defineForm": "fields",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "ID del Producto",
+              "fieldType": "text",
+              "requiredField": true,
+              "placeholder": "ej. PROD-001"
+            },
+            {
+              "fieldLabel": "Nueva Cantidad Stock",
+              "fieldType": "number",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "formTitle": "Actualizar Stock"
+        }
+      },
+      "id": "8abb29a8-0c15-4a5d-979f-f198e04d5b1a",
+      "name": "Datos Actualizacion",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        700,
+        580
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "TU_SPREADSHEET_COPIA_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Stock",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json['ID del Producto'] }}",
+            "Stock_Actual": "={{ $json['Nueva Cantidad Stock'] }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "type": "string",
+              "defaultMatch": true
+            },
+            {
+              "id": "Stock_Actual",
+              "displayName": "Stock_Actual",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7f1a0b75-c044-4ee2-a8aa-901f0d5efb73",
+      "name": "Actualizar Cantidad",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        980,
+        580
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "✅ Stock actualizado",
+        "completionMessage": "La cantidad en stock ha sido actualizada correctamente.",
+        "options": {}
+      },
+      "id": "cc72f90a-9c74-4e00-b8e2-7e8648140d37",
+      "name": "Confirmacion Actualizar",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        1260,
+        580
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "TU_SPREADSHEET_COPIA_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Stock",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "73c10ec5-f276-41ac-b031-a82adf264bc7",
+      "name": "Leer Stock Alertas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        700,
+        860
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets (OAuth2)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst rows = items.map(i => i.json);\nconst alerts = rows.filter(r => parseFloat(r.Stock_Actual || 0) <= parseFloat(r.Stock_Minimo || 0));\n\nconst tableRows = alerts.map(row => `\n  <tr>\n    <td>${row.ID}</td>\n    <td><strong>${row.Nombre}</strong></td>\n    <td style=\"text-align:center;color:#dc2626;font-weight:600\">${row.Stock_Actual} ${row.Unidad || ''}</td>\n    <td style=\"text-align:center\">${row.Stock_Minimo}</td>\n    <td>${row.Categoria || ''}</td>\n  </tr>`).join('');\n\nconst html = `<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<title>Alertas de Stock</title>\n<style>\n  *{margin:0;padding:0;box-sizing:border-box}\n  body{font-family:system-ui,Arial,sans-serif;background:#fff7f7;padding:24px}\n  h1{color:#dc2626;font-size:22px;margin-bottom:4px}\n  .meta{color:#64748b;font-size:13px;margin-bottom:20px}\n  .card{background:white;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.1);overflow:hidden}\n  table{width:100%;border-collapse:collapse}\n  th{background:#dc2626;color:white;padding:10px 14px;text-align:left;font-size:13px;font-weight:600}\n  td{padding:10px 14px;border-bottom:1px solid #fef2f2;font-size:13px;vertical-align:middle}\n  tr:last-child td{border-bottom:none}\n  .ok{color:#16a34a;font-size:18px;text-align:center;padding:40px}\n  .btn{position:fixed;top:16px;right:16px;background:#dc2626;color:white;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:14px;font-family:inherit}\n  @media print{.btn{display:none}body{background:white}}\n</style></head><body>\n<button class=\"btn\" onclick=\"window.print()\">🖨️ Imprimir</button>\n<h1>⚠️ Alertas de Stock Bajo</h1>\n<p class=\"meta\">${alerts.length} producto(s) por debajo del mínimo · ${new Date().toLocaleString('es-ES')}</p>\n${alerts.length === 0\n  ? '<div class=\"card\"><p class=\"ok\">✅ ¡Todo el stock está en niveles correctos!</p></div>'\n  : `<div class=\"card\"><table><thead><tr>\n      <th>ID</th><th>Producto</th><th>Stock Actual</th><th>Mínimo</th><th>Categoría</th>\n    </tr></thead><tbody>${tableRows}</tbody></table></div>`}\n</body></html>`;\n\nreturn [{json: {html}}];"
+      },
+      "id": "781bc1e0-ad31-4fbc-8896-2eea9d0c0656",
+      "name": "Generar HTML Alertas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.html }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "5ba23e7c-323b-4f66-af79-3a5d71fbfac0",
+      "name": "Responder Alertas",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1260,
+        860
+      ]
+    }
+  ],
+  "connections": {
+    "Formulario de Stock": {
+      "main": [
+        [
+          {
+            "node": "Enrutar Accion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrutar Accion": {
+      "main": [
+        [
+          {
+            "node": "Leer Stock",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Datos del Producto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Datos Actualizacion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Leer Stock Alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Stock": {
+      "main": [
+        [
+          {
+            "node": "Generar HTML Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar HTML Stock": {
+      "main": [
+        [
+          {
+            "node": "Responder Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos del Producto": {
+      "main": [
+        [
+          {
+            "node": "Guardar Producto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Producto": {
+      "main": [
+        [
+          {
+            "node": "Confirmacion Añadir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Datos Actualizacion": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Cantidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Cantidad": {
+      "main": [
+        [
+          {
+            "node": "Confirmacion Actualizar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Stock Alertas": {
+      "main": [
+        [
+          {
+            "node": "Generar HTML Alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar HTML Alertas": {
+      "main": [
+        [
+          {
+            "node": "Responder Alertas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "stock-app-n8n"
+  }
+}

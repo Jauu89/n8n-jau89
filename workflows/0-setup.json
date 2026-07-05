@@ -1,0 +1,221 @@
+{
+  "name": "0 - Setup Inicial (Ejecutar Una Sola Vez)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "aaa00001-0000-0000-0000-000000000001",
+      "name": "Ejecutar Manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 360]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "value": "1g-1ZIuwTC6gtLEnFraCWP9OqLfp-lWndAjJqSXlhh-k",
+          "mode": "id"
+        },
+        "name": "[APP] Stock Contratos Facturas",
+        "options": {}
+      },
+      "id": "aaa00002-0000-0000-0000-000000000002",
+      "name": "Copiar Spreadsheet Original",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [460, 360],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "TU_CREDENTIAL_DRIVE_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "name": "Contratos",
+        "options": {}
+      },
+      "id": "aaa00003-0000-0000-0000-000000000003",
+      "name": "Crear Carpeta Contratos",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [680, 260],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "TU_CREDENTIAL_DRIVE_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "folder",
+        "operation": "create",
+        "name": "Facturas",
+        "options": {}
+      },
+      "id": "aaa00004-0000-0000-0000-000000000004",
+      "name": "Crear Carpeta Facturas",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [680, 460],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "TU_CREDENTIAL_DRIVE_ID",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-spreadsheet-id",
+              "name": "spreadsheet_copia_id",
+              "value": "={{ $('Copiar Spreadsheet Original').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-contratos-id",
+              "name": "carpeta_contratos_id",
+              "value": "={{ $('Crear Carpeta Contratos').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "assign-facturas-id",
+              "name": "carpeta_facturas_id",
+              "value": "={{ $('Crear Carpeta Facturas').item.json.id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aaa00005-0000-0000-0000-000000000005",
+      "name": "Consolidar IDs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [900, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ids = $input.first().json;\n\nconst html = `<!DOCTYPE html>\n<html lang=\"es\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Setup Completado</title>\n  <style>\n    body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; background: #f9fafb; }\n    h1 { color: #16a34a; }\n    .card { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,.1); margin-bottom: 20px; }\n    .badge { display: inline-block; background: #dcfce7; color: #166534; border-radius: 6px; padding: 2px 10px; font-size: 13px; font-weight: 600; margin-bottom: 8px; }\n    label { display: block; font-size: 13px; color: #6b7280; margin-top: 12px; margin-bottom: 4px; font-weight: 500; }\n    .id-box { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 10px 14px; font-family: monospace; font-size: 14px; word-break: break-all; cursor: pointer; transition: background .15s; }\n    .id-box:hover { background: #e5e7eb; }\n    .copy-hint { font-size: 11px; color: #9ca3af; margin-top: 3px; }\n    .steps { background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 16px 20px; }\n    .steps ol { margin: 8px 0 0; padding-left: 20px; }\n    .steps li { margin-bottom: 6px; font-size: 14px; color: #1e40af; }\n    .steps code { background: #dbeafe; padding: 1px 5px; border-radius: 3px; font-size: 13px; }\n  </style>\n</head>\n<body>\n  <div class=\"card\">\n    <span class=\"badge\">✅ Setup completado</span>\n    <h1>IDs generados correctamente</h1>\n    <p>Copia estos tres IDs y pégalos en los workflows 1, 2 y 3 donde se indica. Haz clic en cada ID para copiarlo.</p>\n\n    <label>📊 Spreadsheet (copia) → reemplaza <code>TU_SPREADSHEET_COPIA_ID</code> en workflows 1, 2 y 3</label>\n    <div class=\"id-box\" onclick=\"navigator.clipboard.writeText(this.innerText)\">${ids.spreadsheet_copia_id}</div>\n    <div class=\"copy-hint\">Haz clic para copiar</div>\n\n    <label>📁 Carpeta Contratos → reemplaza <code>TU_CARPETA_CONTRATOS_ID</code> en workflow 2</label>\n    <div class=\"id-box\" onclick=\"navigator.clipboard.writeText(this.innerText)\">${ids.carpeta_contratos_id}</div>\n    <div class=\"copy-hint\">Haz clic para copiar</div>\n\n    <label>📁 Carpeta Facturas → reemplaza <code>TU_CARPETA_FACTURAS_ID</code> en workflow 3</label>\n    <div class=\"id-box\" onclick=\"navigator.clipboard.writeText(this.innerText)\">${ids.carpeta_facturas_id}</div>\n    <div class=\"copy-hint\">Haz clic para copiar</div>\n  </div>\n\n  <div class=\"steps\">\n    <strong>Próximos pasos:</strong>\n    <ol>\n      <li>Abre el workflow <strong>1-stock-management</strong> → busca el nodo Google Sheets → reemplaza <code>TU_SPREADSHEET_COPIA_ID</code></li>\n      <li>Abre el workflow <strong>2-contract-generator</strong> → reemplaza <code>TU_SPREADSHEET_COPIA_ID</code> y <code>TU_CARPETA_CONTRATOS_ID</code></li>\n      <li>Abre el workflow <strong>3-invoice-generator</strong> → reemplaza <code>TU_SPREADSHEET_COPIA_ID</code> y <code>TU_CARPETA_FACTURAS_ID</code></li>\n      <li>En Google Sheets, abre la copia y crea las 3 pestañas: <strong>Stock</strong>, <strong>Contratos</strong>, <strong>Facturas</strong> con las columnas del README</li>\n      <li>Activa los workflows 1, 2 y 3</li>\n    </ol>\n  </div>\n</body>\n</html>`;\n\nreturn [{ json: { html } }];"
+      },
+      "id": "aaa00006-0000-0000-0000-000000000006",
+      "name": "Generar Pantalla de IDs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 360]
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        },
+        "respondWith": "json",
+        "responseBody": "={{ $json.html }}"
+      },
+      "id": "aaa00007-0000-0000-0000-000000000007",
+      "name": "Mostrar IDs en Pantalla",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 360]
+    }
+  ],
+  "connections": {
+    "Ejecutar Manualmente": {
+      "main": [
+        [
+          {
+            "node": "Copiar Spreadsheet Original",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copiar Spreadsheet Original": {
+      "main": [
+        [
+          {
+            "node": "Crear Carpeta Contratos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Crear Carpeta Facturas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Carpeta Contratos": {
+      "main": [
+        [
+          {
+            "node": "Consolidar IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Carpeta Facturas": {
+      "main": [
+        [
+          {
+            "node": "Consolidar IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar IDs": {
+      "main": [
+        [
+          {
+            "node": "Generar Pantalla de IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generar Pantalla de IDs": {
+      "main": [
+        [
+          {
+            "node": "Mostrar IDs en Pantalla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "aaa00000-setup-0000-0000-000000000000",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "setup-workflow-001",
+  "tags": []
+}
