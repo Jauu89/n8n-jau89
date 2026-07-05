@@ -1,0 +1,40 @@
+body {
+  width: 260px;
+  margin: 0;
+  padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1e1e1e;
+  color: #f0f0f0;
+}
+
+h1 {
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #3a3a3a;
+}
+
+.row:first-of-type {
+  border-top: none;
+}
+
+label {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+input[type='checkbox'] {
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  cursor: pointer;
+}

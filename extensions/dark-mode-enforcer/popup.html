@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dark Mode Enforcer</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>Dark Mode Enforcer</h1>
+
+    <div class="row">
+      <label for="global-toggle">Modo oscuro global</label>
+      <input type="checkbox" id="global-toggle" />
+    </div>
+
+    <div class="row" id="domain-row" hidden>
+      <label for="domain-toggle">Desactivar en <span id="domain-name"></span></label>
+      <input type="checkbox" id="domain-toggle" />
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
