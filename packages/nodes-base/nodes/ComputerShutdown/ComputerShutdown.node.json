@@ -1,0 +1,12 @@
+{
+	"node": "n8n-nodes-base.computerShutdown",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"details": "Computer Power te permite encender remotamente via Wake-on-LAN, apagar, suspender, hibernar o reiniciar el ordenador que aloja tu instancia de n8n, por ejemplo desde el móvil a través de un webhook.",
+	"categories": ["Utility", "Core Nodes"],
+	"resources": {},
+	"alias": ["Shutdown", "Suspend", "Hibernate", "Reboot", "Power", "WakeOnLan", "WoL", "Apagar", "Suspender", "Encender"],
+	"subcategories": {
+		"Core Nodes": ["Helpers"]
+	}
+}

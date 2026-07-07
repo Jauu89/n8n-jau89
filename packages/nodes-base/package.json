@@ -493,6 +493,7 @@
       "dist/nodes/EmailSend/EmailSend.node.js",
       "dist/nodes/Emelia/Emelia.node.js",
       "dist/nodes/Emelia/EmeliaTrigger.node.js",
+      "dist/nodes/ComputerShutdown/ComputerShutdown.node.js",
       "dist/nodes/ERPNext/ERPNext.node.js",
       "dist/nodes/ErrorTrigger/ErrorTrigger.node.js",
       "dist/nodes/Eventbrite/EventbriteTrigger.node.js",
